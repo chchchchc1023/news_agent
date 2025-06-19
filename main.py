@@ -11,6 +11,16 @@ from loguru import logger
 
 # 设置环境编码
 os.environ['PYTHONIOENCODING'] = 'utf-8'
+# 设置默认编码
+import locale
+try:
+    locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+except locale.Error:
+    try:
+        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+    except locale.Error:
+        # 如果都失败，使用系统默认
+        pass
 
 # 导入所有模块
 from config import DB_CONFIG, NEWS_API_URL, SCHEDULE_HOURS, LOG_LEVEL, LOG_FILE
@@ -23,6 +33,13 @@ from scheduler import news_scheduler
 
 def setup_logging():
     """设置日志配置"""
+    # 强制设置标准输出编码
+    import sys
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8')
+
     # 移除默认处理器
     logger.remove()
     

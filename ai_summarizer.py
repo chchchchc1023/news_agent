@@ -142,10 +142,19 @@ class AISummarizer:
             return result
             
         except Exception as e:
-            logger.error(f"AI分析新闻失败: {e}")
+            # 安全处理错误信息，避免编码问题
+            error_msg = str(e).encode('utf-8', errors='ignore').decode('utf-8')
+            logger.error(f"AI分析新闻失败: {error_msg}")
+
+            # 安全处理新闻内容，确保是字符串且编码正确
+            safe_content = news_content
+            if isinstance(safe_content, bytes):
+                safe_content = safe_content.decode('utf-8', errors='ignore')
+            safe_content = str(safe_content)[:200]
+
             return {
                 'importance': '低',
-                'summary': news_content[:200] + "..." if len(news_content) > 200 else news_content,
+                'summary': safe_content + "..." if len(safe_content) > 200 else safe_content,
                 'keywords': ''
             }
     
