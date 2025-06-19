@@ -108,23 +108,46 @@ class AISummarizer:
     ("human", "新闻内容：{news_content}")
 ])
     
+    def _safe_encode_content(self, content: str) -> str:
+        """安全编码内容，移除或替换有问题的字符"""
+        if isinstance(content, bytes):
+            content = content.decode('utf-8', errors='ignore')
+
+        # 确保是字符串
+        content = str(content)
+
+        # 移除或替换可能有问题的字符
+        # 只保留基本的中文、英文、数字和常用标点
+        import re
+        # 保留中文、英文、数字、基本标点和空格
+        content = re.sub(r'[^\u4e00-\u9fff\u3400-\u4dbf\w\s.,!?;:()[]{}""''—-]', '', content)
+
+        return content.strip()
+
     def analyze_news_importance(self, news_content: str) -> Dict[str, Any]:
         """
         分析单条新闻的重要性
-        
+
         Args:
             news_content: 新闻内容
-            
+
         Returns:
             Dict: 包含重要性等级、总结、关键词的字典
         """
         try:
-            # 确保新闻内容是UTF-8编码
-            if isinstance(news_content, bytes):
-                news_content = news_content.decode('utf-8', errors='ignore')
+            # 安全编码新闻内容
+            safe_content = self._safe_encode_content(news_content)
 
-            # 构建提示
-            messages = self.summary_prompt.format_messages(news_content=news_content)
+            # 如果内容太短，直接返回低重要性
+            if len(safe_content.strip()) < 10:
+                return {
+                    'importance': '低',
+                    'summary': safe_content,
+                    'keywords': ''
+                }
+
+            # 构建提示 - 使用安全的内容
+            messages = self.summary_prompt.format_messages(news_content=safe_content)
 
             # 调用AI模型
             response = self.llm.invoke(messages)
@@ -137,20 +160,19 @@ class AISummarizer:
 
             # 解析响应
             result = self._parse_ai_response(response_text)
-            
+
             logger.debug(f"AI分析结果: {result}")
             return result
-            
-        except Exception as e:
-            # 安全处理错误信息，避免编码问题
-            error_msg = str(e).encode('utf-8', errors='ignore').decode('utf-8')
-            logger.error(f"AI分析新闻失败: {error_msg}")
 
-            # 安全处理新闻内容，确保是字符串且编码正确
-            safe_content = news_content
-            if isinstance(safe_content, bytes):
-                safe_content = safe_content.decode('utf-8', errors='ignore')
-            safe_content = str(safe_content)[:200]
+        except Exception as e:
+            # 记录详细错误信息用于调试
+            import traceback
+            error_details = traceback.format_exc()
+            logger.error(f"AI分析新闻失败: {str(e)}")
+            logger.debug(f"详细错误: {error_details}")
+
+            # 安全处理新闻内容
+            safe_content = self._safe_encode_content(news_content)[:200]
 
             return {
                 'importance': '低',
@@ -197,7 +219,11 @@ class AISummarizer:
         
         for i, news in enumerate(news_list):
             logger.info(f"正在分析第 {i+1}/{len(news_list)} 条新闻...")
-            
+
+            # 调试：记录新闻内容的前100个字符
+            content_preview = str(news['content'])[:100].replace('\n', ' ')
+            logger.debug(f"新闻内容预览: {content_preview}...")
+
             # 分析新闻重要性
             analysis = self.analyze_news_importance(news['content'])
             
