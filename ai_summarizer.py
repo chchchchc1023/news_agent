@@ -30,7 +30,6 @@ class AISummarizer:
         
         # 创建总结提示模板
         self.summary_prompt = ChatPromptTemplate.from_messages([
-            self.summary_prompt = ChatPromptTemplate.from_messages([
     ("system", """你是一位专精加密货币和区块链领域的资深新闻分析师，拥有深厚的金融市场、技术发展和监管政策分析经验。请基于当前加密货币市场环境，客观、准确地分析新闻内容，评估其重要性并提供专业总结。
 
 当前市场背景（2025年）：
@@ -106,8 +105,6 @@ class AISummarizer:
 如果新闻重要性等级为"低"，请直接回复"重要性等级：低"即可。"""),
     ("human", "新闻内容：{news_content}")
 ])
-
-        ])
     
     def analyze_news_importance(self, news_content: str) -> Dict[str, Any]:
         """
