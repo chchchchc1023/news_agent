@@ -118,6 +118,70 @@ def start_scheduler(run_immediately=False):
     news_scheduler.run_forever(run_immediately=run_immediately)
 
 
+def start_web_server():
+    """启动Web服务器模式（用于Render部署）"""
+    import os
+    import threading
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import json
+
+    # 启动后台调度器
+    def run_scheduler():
+        try:
+            logger.info("启动后台新闻调度器...")
+            news_scheduler.run_forever(run_immediately=True)
+        except Exception as e:
+            logger.error(f"调度器错误: {e}")
+
+    scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+    scheduler_thread.start()
+
+    # 简单的HTTP处理器
+    class SimpleHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {
+                    "status": "healthy",
+                    "service": "News Agent System",
+                    "timestamp": datetime.now().isoformat()
+                }
+                self.wfile.write(json.dumps(response).encode())
+            elif self.path == '/':
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {
+                    "service": "News Agent System",
+                    "status": "running",
+                    "description": "基于LangChain + LangGraph的智能新闻分析系统",
+                    "timestamp": datetime.now().isoformat()
+                }
+                self.wfile.write(json.dumps(response).encode())
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, format, *args):
+            # 禁用默认日志，使用我们的logger
+            logger.info(f"HTTP {format % args}")
+
+    # 启动HTTP服务器
+    port = int(os.environ.get('PORT', 8000))
+    server = HTTPServer(('0.0.0.0', port), SimpleHandler)
+    logger.info(f"🌐 Web服务器启动在端口 {port}")
+    logger.info("📡 健康检查端点: /health")
+    logger.info("🏠 主页端点: /")
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        logger.info("👋 Web服务器关闭")
+        server.shutdown()
+
+
 def main():
     """主函数"""
     # 设置日志
@@ -133,6 +197,7 @@ def main():
     parser.add_argument("--start", action="store_true", help="启动定时调度器")
     parser.add_argument("--start-now", action="store_true", help="启动定时调度器并立即执行一次")
     parser.add_argument("--info", action="store_true", help="显示系统信息")
+    parser.add_argument("--web", action="store_true", help="启动Web服务器模式（用于Render部署）")
     
     args = parser.parse_args()
     
@@ -164,6 +229,11 @@ def main():
         elif args.info:
             # 仅显示信息
             logger.info("ℹ️ 系统信息显示完成")
+
+        elif args.web:
+            # Web服务器模式
+            logger.info("🌐 启动Web服务器模式...")
+            start_web_server()
             
         else:
             # 默认行为：显示帮助
@@ -173,6 +243,7 @@ def main():
             logger.info("   python main.py --start       # 启动定时调度器")
             logger.info("   python main.py --start-now   # 启动调度器并立即执行")
             logger.info("   python main.py --info        # 显示系统信息")
+            logger.info("   python main.py --web         # 启动Web服务器（Render部署用）")
             logger.info("")
             logger.info("🔧 首次使用建议:")
             logger.info("   1. 先运行 --test 测试所有组件")

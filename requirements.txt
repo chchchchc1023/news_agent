@@ -21,7 +21,3 @@ loguru>=0.7.0
 
 # JSON handling
 pydantic>=2.0.0
-
-# Web server (for Render deployment)
-fastapi>=0.104.0
-uvicorn>=0.24.0
