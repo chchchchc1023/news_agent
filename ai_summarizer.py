@@ -1,15 +1,12 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 AI总结模块
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from loguru import logger
 from config import OPENAI_API_KEY
-import os
 
 
 class AISummarizer:
@@ -18,10 +15,14 @@ class AISummarizer:
     def __init__(self):
         # 初始化OpenAI模型
         if OPENAI_API_KEY:
+            # 让OpenAI库自动从环境变量读取API Key，避免编码问题
+            import os
+            os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
+
             self.llm = ChatOpenAI(
-                model="gpt-4.1-mini",
-                temperature=0,
-                api_key=OPENAI_API_KEY
+                model="gpt-4o-mini",
+                temperature=0
+                # 不直接传递api_key，让库从环境变量读取
             )
         else:
             logger.warning("未设置OPENAI_API_KEY，将使用默认配置")
@@ -108,22 +109,6 @@ class AISummarizer:
     ("human", "新闻内容：{news_content}")
 ])
     
-    def _safe_encode_content(self, content: str) -> str:
-        """安全编码内容，移除或替换有问题的字符"""
-        if isinstance(content, bytes):
-            content = content.decode('utf-8', errors='ignore')
-
-        # 确保是字符串
-        content = str(content)
-
-        # 移除或替换可能有问题的字符
-        # 只保留基本的中文、英文、数字和常用标点
-        import re
-        # 保留中文、英文、数字、基本标点和空格
-        content = re.sub(r'[^\u4e00-\u9fff\u3400-\u4dbf\w\s.,!?;:()[]{}""''—-]', '', content)
-
-        return content.strip()
-
     def analyze_news_importance(self, news_content: str) -> Dict[str, Any]:
         """
         分析单条新闻的重要性
@@ -135,28 +120,12 @@ class AISummarizer:
             Dict: 包含重要性等级、总结、关键词的字典
         """
         try:
-            # 安全编码新闻内容
-            safe_content = self._safe_encode_content(news_content)
-
-            # 如果内容太短，直接返回低重要性
-            if len(safe_content.strip()) < 10:
-                return {
-                    'importance': '低',
-                    'summary': safe_content,
-                    'keywords': ''
-                }
-
-            # 构建提示 - 使用安全的内容
-            messages = self.summary_prompt.format_messages(news_content=safe_content)
+            # 构建提示
+            messages = self.summary_prompt.format_messages(news_content=news_content)
 
             # 调用AI模型
             response = self.llm.invoke(messages)
-
-            # 安全获取响应内容
-            if hasattr(response, 'content'):
-                response_text = str(response.content).strip()
-            else:
-                response_text = str(response).strip()
+            response_text = str(response.content).strip()
 
             # 解析响应
             result = self._parse_ai_response(response_text)
@@ -165,18 +134,10 @@ class AISummarizer:
             return result
 
         except Exception as e:
-            # 记录详细错误信息用于调试
-            import traceback
-            error_details = traceback.format_exc()
-            logger.error(f"AI分析新闻失败: {str(e)}")
-            logger.debug(f"详细错误: {error_details}")
-
-            # 安全处理新闻内容
-            safe_content = self._safe_encode_content(news_content)[:200]
-
+            logger.error(f"AI分析新闻失败: {e}")
             return {
                 'importance': '低',
-                'summary': safe_content + "..." if len(safe_content) > 200 else safe_content,
+                'summary': news_content[:200] + "..." if len(news_content) > 200 else news_content,
                 'keywords': ''
             }
     
@@ -219,10 +180,6 @@ class AISummarizer:
         
         for i, news in enumerate(news_list):
             logger.info(f"正在分析第 {i+1}/{len(news_list)} 条新闻...")
-
-            # 调试：记录新闻内容的前100个字符
-            content_preview = str(news['content'])[:100].replace('\n', ' ')
-            logger.debug(f"新闻内容预览: {content_preview}...")
 
             # 分析新闻重要性
             analysis = self.analyze_news_importance(news['content'])

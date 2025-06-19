@@ -30,5 +30,5 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 SCHEDULE_HOURS = 6  # 每6小时执行一次
 
 # 日志配置
-LOG_LEVEL = os.getenv('LOG_LEVEL', "DEBUG")  # 临时启用DEBUG
+LOG_LEVEL = os.getenv('LOG_LEVEL', "INFO")
 LOG_FILE = "news_agent.log"
