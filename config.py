@@ -4,8 +4,8 @@
 import os
 from dotenv import load_dotenv
 
-# 加载环境变量
-load_dotenv()
+# 加载环境变量 - 强制加载.env文件
+load_dotenv('.env', override=True)
 
 # 数据库配置
 DB_CONFIG = {
@@ -16,8 +16,8 @@ DB_CONFIG = {
     'database': os.getenv('DB_NAME', 'news_agent'),
     'charset': 'utf8mb4',
     'ssl_disabled': False,  # 启用SSL
-    'ssl_verify_cert': True,
-    'ssl_verify_identity': True
+    'ssl_verify_cert': False,  # 跳过证书验证
+    'ssl_verify_identity': False  # 跳过身份验证
 }
 
 # API配置
