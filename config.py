@@ -10,10 +10,14 @@ load_dotenv()
 # 数据库配置
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'localhost'),
+    'port': int(os.getenv('DB_PORT', '3306')),
     'user': os.getenv('DB_USER', 'root'),
     'password': os.getenv('DB_PASSWORD', ''),
     'database': os.getenv('DB_NAME', 'news_agent'),
-    'charset': 'utf8mb4'
+    'charset': 'utf8mb4',
+    'ssl_disabled': False,  # 启用SSL
+    'ssl_verify_cert': True,
+    'ssl_verify_identity': True
 }
 
 # API配置

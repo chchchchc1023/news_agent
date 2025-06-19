@@ -58,7 +58,7 @@ def print_banner():
 def show_system_info():
     """显示系统信息"""
     logger.info("📋 系统配置信息:")
-    logger.info(f"   - 数据库: {DB_CONFIG['host']}:{DB_CONFIG['database']}")
+    logger.info(f"   - 数据库: {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}")
     logger.info(f"   - 新闻API: {NEWS_API_URL}")
     logger.info(f"   - 执行间隔: 每 {SCHEDULE_HOURS} 小时")
     logger.info(f"   - 日志级别: {LOG_LEVEL}")
