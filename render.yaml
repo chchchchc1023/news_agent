@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: news-agent
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python render_server.py
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: news_agent
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
