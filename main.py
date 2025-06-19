@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 新闻代理系统主程序
 """
 import argparse
 import sys
+import os
 from datetime import datetime
 from loguru import logger
+
+# 设置环境编码
+os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 # 导入所有模块
 from config import DB_CONFIG, NEWS_API_URL, SCHEDULE_HOURS, LOG_LEVEL, LOG_FILE

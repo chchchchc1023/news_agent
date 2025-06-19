@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 AI总结模块
 """
@@ -117,13 +119,22 @@ class AISummarizer:
             Dict: 包含重要性等级、总结、关键词的字典
         """
         try:
+            # 确保新闻内容是UTF-8编码
+            if isinstance(news_content, bytes):
+                news_content = news_content.decode('utf-8', errors='ignore')
+
             # 构建提示
             messages = self.summary_prompt.format_messages(news_content=news_content)
-            
+
             # 调用AI模型
             response = self.llm.invoke(messages)
-            response_text = response.content.strip()
-            
+
+            # 安全获取响应内容
+            if hasattr(response, 'content'):
+                response_text = str(response.content).strip()
+            else:
+                response_text = str(response).strip()
+
             # 解析响应
             result = self._parse_ai_response(response_text)
             
@@ -229,8 +240,12 @@ class AISummarizer:
             
             messages = [HumanMessage(content=final_prompt)]
             response = self.llm.invoke(messages)
-            
-            return response.content.strip()
+
+            # 安全获取响应内容
+            if hasattr(response, 'content'):
+                return str(response.content).strip()
+            else:
+                return str(response).strip()
             
         except Exception as e:
             logger.error(f"创建最终总结失败: {e}")
