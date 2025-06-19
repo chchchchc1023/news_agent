@@ -25,6 +25,8 @@ NEWS_API_URL = "http://volefuture.com/redis/get_latest_news/"
 
 # OpenAI配置 (如果使用OpenAI)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL')
 
 # 调度配置
 SCHEDULE_HOURS = 6  # 每6小时执行一次

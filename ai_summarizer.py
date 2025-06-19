@@ -6,7 +6,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from loguru import logger
-from config import OPENAI_API_KEY
+from config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
 
 
 class AISummarizer:
@@ -20,14 +20,16 @@ class AISummarizer:
             os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
 
             self.llm = ChatOpenAI(
-                model="gpt-4o-mini",
+                base_url=OPENAI_BASE_URL,
+                model=OPENAI_MODEL,
                 temperature=0
                 # 不直接传递api_key，让库从环境变量读取
             )
         else:
             logger.warning("未设置OPENAI_API_KEY，将使用默认配置")
             self.llm = ChatOpenAI(
-                model="gpt-4.1-mini",
+                base_url=OPENAI_BASE_URL,
+                model=OPENAI_MODEL,
                 temperature=0
             )
         
