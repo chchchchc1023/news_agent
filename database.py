@@ -109,15 +109,67 @@ class DatabaseManager:
             if not self.connection or not self.connection.is_connected():
                 if not self.connect():
                     return False
-            
+
             query = "SELECT COUNT(*) FROM news WHERE title = %s"
             self.cursor.execute(query, (title,))
             count = self.cursor.fetchone()[0]
-            
+
             return count > 0
-            
+
         except Error as e:
             logger.error(f"检查新闻是否存在失败: {e}")
+            return False
+
+    def get_today_summary(self, date_str: str) -> Optional[Dict[str, Any]]:
+        """获取今日的新闻总结"""
+        try:
+            if not self.connection or not self.connection.is_connected():
+                if not self.connect():
+                    return None
+
+            summary_title = f"每日新闻总结 - {date_str}"
+            query = """
+            SELECT id, title, summary, importance, content, created_at, updated_at
+            FROM news
+            WHERE title = %s
+            """
+
+            self.cursor.execute(query, (summary_title,))
+            result = self.cursor.fetchone()
+
+            if result:
+                columns = ['id', 'title', 'summary', 'importance', 'content', 'created_at', 'updated_at']
+                return dict(zip(columns, result))
+
+            return None
+
+        except Error as e:
+            logger.error(f"获取今日总结失败: {e}")
+            return None
+
+    def update_news_content(self, news_id: int, new_content: str) -> bool:
+        """更新新闻内容"""
+        try:
+            if not self.connection or not self.connection.is_connected():
+                if not self.connect():
+                    return False
+
+            query = """
+            UPDATE news
+            SET content = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            """
+
+            self.cursor.execute(query, (new_content, news_id))
+            self.connection.commit()
+
+            logger.info(f"成功更新新闻内容，ID: {news_id}")
+            return True
+
+        except Error as e:
+            logger.error(f"更新新闻内容失败: {e}")
+            if self.connection:
+                self.connection.rollback()
             return False
 
 

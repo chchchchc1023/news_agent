@@ -91,3 +91,8 @@ coverage.xml
 *.backup
 *.bak
 *~
+
+# Model compatibility testing tools
+model_compatibility_test.py
+quick_compatibility_check.py
+compatibility_test_results.json

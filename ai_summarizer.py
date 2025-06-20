@@ -1,12 +1,31 @@
 """
 AI总结模块
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 from loguru import logger
 from config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
+
+
+class NewsAnalysis(BaseModel):
+    """新闻分析结果模型
+
+    用于结构化输出新闻重要性分析结果
+    """
+    importance: str = Field(
+        description="重要性等级，必须是以下值之一：高、中、低"
+    )
+    summary: Optional[str] = Field(
+        default="",
+        description="新闻总结，如果重要性为中或高则提供简洁总结（不超过200字），如果为低可以留空"
+    )
+    keywords: Optional[str] = Field(
+        default="",
+        description="关键词，如果重要性为中或高则提供3-5个关键词（用逗号分隔），如果为低可以留空"
+    )
 
 
 class AISummarizer:
@@ -33,81 +52,54 @@ class AISummarizer:
                 temperature=0
             )
         
-        # 创建总结提示模板
+        # 创建总结提示模板 - 专为结构化输出设计
         self.summary_prompt = ChatPromptTemplate.from_messages([
-    ("system", """你是一位专精加密货币和区块链领域的资深新闻分析师，拥有深厚的金融市场、技术发展和监管政策分析经验。请基于当前加密货币市场环境，客观、准确地分析新闻内容，评估其重要性并提供专业总结。
+    ("system", """你是一位专精加密货币和美股市场的资深金融分析师。请客观分析新闻内容对市场的重要性和潜在影响。
 
-当前市场背景（2025年）：
-- 加密货币总市值已达3.7万亿美元，机构投资大幅增长
-- 比特币ETF获批，稳定币市场创历史新高（2517亿美元）
-- 美国政府实施亲加密政策，建立战略比特币储备
-- 欧盟MiCAR法规全面生效，监管框架日趋完善
-- DeFi生态系统快速发展，TVL预计达2000亿美元
-- 47%传统对冲基金已接触数字资产
+重要性评估标准（基于市场影响程度）：
 
-重要性评估标准：
-
-【高重要性 - 市场震荡级】
-监管政策类：
-- 主要国家/地区加密货币监管政策重大变化
-- SEC、CFTC等监管机构重要决定或执法行动
-- 央行数字货币(CBDC)重大进展或政策变化
-- 加密货币禁令或合法化决定
-
-机构与市场类：
-- 大型机构（>10亿美元AUM）首次大额配置或撤出加密货币
+【高重要性 - 可能引发重大市场波动】：
+- SEC、CFTC、Fed等监管机构重要决定或政策变化（利率决议、监管框架、执法行动）
+- 大型机构（>10亿美元）首次大额配置或撤出加密货币/股票
 - 主要ETF获批/拒绝或重大资金流入/流出（>5亿美元）
-- 知名企业采用/放弃比特币作为储备资产
-- 主要交易所重大事件（倒闭、被黑、监管处罚）
-
-技术与项目类：
-- 比特币/以太坊等主流币重大技术升级或分叉
-- 重大安全事件（>1亿美元损失的黑客攻击）
-- 知名DeFi协议重大漏洞或TVL异常变化（>50%）
-- Layer 2或跨链技术重大突破
-
-市场表现类：
+- 比特币/以太坊等主流币重大技术升级、分叉或安全事件
+- 主要交易所重大事件（倒闭、被黑、监管处罚、系统故障）
 - 比特币/以太坊单日涨跌幅>15%或创历史新高/新低
-- 加密货币总市值单日变化>10%
-- 重大"黑天鹅"事件影响整个加密生态
+- 美股主要指数（S&P500、纳斯达克）单日涨跌幅>3%
+- 重大宏观经济事件（通胀数据、就业数据、GDP数据超预期）
+- 地缘政治重大事件（战争、制裁、贸易争端）
+- 系统性金融风险事件（银行倒闭、流动性危机）
 
-【中重要性 - 行业影响级】
-- 中型机构（1-10亿美元）加密货币投资策略变化
+【中重要性 - 可能影响特定板块或短期情绪】：
+- 中型机构（1-10亿美元）加密货币/股票投资策略变化
 - 区域性监管政策调整或指引发布
-- 主流币种（市值前10）技术更新或合作伙伴关系
-- DeFi、NFT、Web3游戏领域重要项目启动或更新
-- 加密货币在支付、跨境汇款等实用场景的应用进展
-- 能源环保相关的加密挖矿政策或技术发展
-- 知名人士或企业家的加密货币言论（市值>500亿美元影响力）
+- 主流币种（市值前10）或知名上市公司技术更新、合作伙伴关系
+- DeFi、NFT、Web3、AI、新能源等热门领域重要项目启动或更新
+- 知名人士、企业家、分析师的市场言论或投资建议
+- 单个大型公司财报超预期或重大业务变化
+- 行业政策变化（如AI监管、新能源补贴政策等）
+- 主流币种或知名股票5-15%的价格波动
 
-【低重要性 - 一般资讯级】
+【低重要性 - 对市场影响有限】：
 - 小规模项目的常规更新或技术改进
-- 一般性市场分析或价格预测
+- 一般性市场分析、价格预测或技术分析
 - 个人投资者行为或小额交易
 - 娱乐性质的Meme币或小众项目动态
-- 常规的行业会议、报告发布
-- 个人层面的加密货币使用体验分享
+- 常规的公司运营更新或人事变动
+- 小幅价格波动（<5%）或正常市场波动
+- 与金融市场无直接关联的新闻
 
-特殊考量因素：
-1. **连带效应**：评估事件对整个加密生态系统的潜在影响
-2. **时效性**：监管政策和技术事件通常具有持续影响
-3. **市场情绪**：在牛市/熊市不同阶段，同类事件重要性可能不同
-4. **技术复杂性**：Layer 2、DeFi、跨链等技术事件需要专业判断
-5. **地缘政治**：国际关系变化对加密货币监管环境的影响
+分析时请特别关注：
+1. 新闻对加密货币市场的直接或间接影响
+2. 新闻对美股市场（特别是科技股、金融股）的影响
+3. 宏观经济因素对两个市场的联动影响
+4. 监管政策变化的市场预期影响
+5. 机构资金流向的变化趋势
 
-分析要求：
-1. 基于事实和数据进行客观评估，避免炒作和恐慌情绪
-2. 考虑事件的直接影响和间接影响范围
-3. 结合当前市场环境和监管趋势进行综合判断
-4. 总结应突出核心信息，避免技术术语过度复杂化
-5. 关键词应涵盖相关技术、监管、市场等多个维度
-
-请按以下格式回复：
-重要性等级：[高/中/低]
-总结：[简洁的新闻总结，不超过200字]
-关键词：[3-5个关键词，用逗号分隔]
-
-如果新闻重要性等级为"低"，请直接回复"重要性等级：低"即可。"""),
+请基于以上标准分析新闻，并提供：
+- importance: 重要性等级（高/中/低）
+- summary: 如果重要性为中或高，提供简洁的新闻总结，重点说明对市场的潜在影响（不超过200字）；如果为低，可以留空
+- keywords: 如果重要性为中或高，提供3-5个关键词（用逗号分隔），包含相关的市场影响关键词；如果为低，可以留空"""),
     ("human", "新闻内容：{news_content}")
 ])
     
@@ -122,50 +114,101 @@ class AISummarizer:
             Dict: 包含重要性等级、总结、关键词的字典
         """
         try:
-            # 构建提示
+            # 首先尝试结构化输出
+            structured_llm = self.llm.with_structured_output(NewsAnalysis)
             messages = self.summary_prompt.format_messages(news_content=news_content)
+            result = structured_llm.invoke(messages)
 
-            # 调用AI模型
-            response = self.llm.invoke(messages)
-            response_text = str(response.content).strip()
+            result_dict = {
+                'importance': result.importance,
+                'summary': result.summary or '',
+                'keywords': result.keywords or ''
+            }
 
-            # 解析响应
-            result = self._parse_ai_response(response_text)
-
-            logger.debug(f"AI分析结果: {result}")
-            return result
+            logger.debug(f"AI分析结果 (结构化): {result_dict}")
+            return result_dict
 
         except Exception as e:
-            logger.error(f"AI分析新闻失败: {e}")
+            logger.warning(f"结构化输出失败，尝试JSON模式: {e}")
+
+            # 回退到JSON模式
+            try:
+                return self._analyze_with_json_mode(news_content)
+            except Exception as e2:
+                logger.error(f"JSON模式也失败: {e2}")
+                # 不返回默认值，而是明确标记为失败
+                return {
+                    'importance': 'FAILED',
+                    'summary': f'AI分析失败: {str(e2)}',
+                    'keywords': 'AI分析失败'
+                }
+
+    def _analyze_with_json_mode(self, news_content: str) -> Dict[str, Any]:
+        """使用JSON模式分析新闻"""
+        json_prompt = f"""请分析以下新闻对加密货币和美股市场的重要性和影响，并以JSON格式回复。
+
+新闻内容：{news_content}
+
+重要性评估标准（基于市场影响程度）：
+
+【高重要性 - 可能引发重大市场波动】：
+- SEC、CFTC、Fed等监管机构重要决定（利率决议、监管框架、执法行动）
+- 大型机构（>10亿美元）首次大额配置或撤出加密货币/股票
+- 主要ETF获批/拒绝或重大资金流入/流出（>5亿美元）
+- 比特币/以太坊重大技术升级、分叉或安全事件
+- 主要交易所重大事件（倒闭、被黑、监管处罚）
+- 主流币或美股指数单日涨跌幅>15%或>3%，创历史新高/新低
+- 重大宏观经济事件（通胀、就业、GDP数据超预期）
+- 地缘政治重大事件、系统性金融风险事件
+
+【中重要性 - 可能影响特定板块或短期情绪】：
+- 中型机构投资策略变化、区域性监管政策调整
+- 主流币种（市值前10）或知名上市公司技术更新、合作关系
+- DeFi、NFT、Web3、AI、新能源等热门领域重要项目
+- 知名人士、企业家、分析师的市场言论或投资建议
+- 单个大型公司财报超预期或重大业务变化
+- 行业政策变化、主流资产5-15%的价格波动
+
+【低重要性 - 对市场影响有限】：
+- 小规模项目常规更新、一般性市场分析或价格预测
+- 个人投资者行为、娱乐性Meme币、小众项目动态
+- 常规公司运营更新、小幅价格波动（<5%）
+- 与金融市场无直接关联的新闻
+
+分析时请特别关注新闻对加密货币市场和美股市场的直接或间接影响，包括宏观经济因素的联动影响、监管政策变化的市场预期影响、机构资金流向变化等。
+
+请严格按照以下JSON格式回复：
+{{
+    "importance": "高/中/低",
+    "summary": "新闻总结，重点说明对市场的潜在影响（如果重要性为低可以留空）",
+    "keywords": "关键词1,关键词2,关键词3,市场影响关键词（如果重要性为低可以留空）"
+}}
+
+只返回JSON，不要任何其他内容。"""
+
+        from langchain_core.messages import HumanMessage
+        response = self.llm.invoke([HumanMessage(content=json_prompt)])
+        response_text = str(response.content).strip()
+
+        # 解析JSON响应
+        import json
+        import re
+
+        # 提取JSON部分
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(0)
+            result_dict = json.loads(json_str)
+
+            # 标准化结果
             return {
-                'importance': '低',
-                'summary': news_content[:200] + "..." if len(news_content) > 200 else news_content,
-                'keywords': ''
+                'importance': result_dict.get('importance', '低'),
+                'summary': result_dict.get('summary', ''),
+                'keywords': result_dict.get('keywords', '')
             }
-    
-    def _parse_ai_response(self, response_text: str) -> Dict[str, Any]:
-        """解析AI响应文本"""
-        result = {
-            'importance': '低',
-            'summary': '',
-            'keywords': ''
-        }
-        
-        lines = response_text.split('\n')
-        for line in lines:
-            line = line.strip()
-            if line.startswith('重要性等级：'):
-                importance = line.replace('重要性等级：', '').strip()
-                result['importance'] = importance
-            elif line.startswith('总结：'):
-                summary = line.replace('总结：', '').strip()
-                result['summary'] = summary
-            elif line.startswith('关键词：'):
-                keywords = line.replace('关键词：', '').strip()
-                result['keywords'] = keywords
-        
-        return result
-    
+        else:
+            raise ValueError(f"无法从响应中提取JSON，AI回复: {response_text[:100]}...")
+
     def filter_important_news(self, news_list: List[Dict[str, str]]) -> List[Dict[str, Any]]:
         """
         筛选重要新闻并生成总结
@@ -185,7 +228,12 @@ class AISummarizer:
 
             # 分析新闻重要性
             analysis = self.analyze_news_importance(news['content'])
-            
+
+            # 检查分析是否失败
+            if analysis['importance'] == 'FAILED':
+                logger.error(f"新闻分析失败，跳过: {news['title'][:50]}... (错误: {analysis['summary']})")
+                continue
+
             # 只保留中等和高重要性的新闻
             if analysis['importance'] in ['中', '高']:
                 important_news.append({
@@ -247,6 +295,62 @@ class AISummarizer:
             summaries = [news['summary'] for news in important_news]
             return "今日重要新闻总结：\n" + "\n".join(f"• {summary}" for summary in summaries)
 
+    def merge_summaries(self, existing_summary: str, new_summary: str, new_important_news: List[Dict[str, Any]]) -> str:
+        """
+        合并已有总结和新总结
+
+        Args:
+            existing_summary: 已有的总结内容
+            new_summary: 新生成的总结内容
+            new_important_news: 新发现的重要新闻列表
+
+        Returns:
+            str: 合并后的综合总结
+        """
+        if not new_important_news:
+            logger.info("没有新的重要新闻，保持原有总结")
+            return existing_summary
+
+        try:
+            # 构建合并提示
+            new_news_summaries = []
+            for i, news in enumerate(new_important_news, 1):
+                new_news_summaries.append(f"{i}. {news['summary']} (重要性: {news['importance']})")
+
+            new_content = "\n".join(new_news_summaries)
+
+            merge_prompt = f"""请将已有的新闻总结与新发现的重要新闻进行合并，生成一个更全面的综合总结。
+
+已有总结：
+{existing_summary}
+
+新发现的重要新闻：
+{new_content}
+
+请提供一个综合性的总结，要求：
+1. 整合所有重要信息，避免重复
+2. 突出最重要的事件和趋势
+3. 如果有相关联的事件，请指出其关联性
+4. 保持专业但易懂的语言
+5. 总结长度控制在400字以内
+6. 按重要性和时间逻辑组织内容"""
+
+            from langchain_core.messages import HumanMessage
+            response = self.llm.invoke([HumanMessage(content=merge_prompt)])
+
+            # 安全获取响应内容
+            if hasattr(response, 'content'):
+                merged_summary = str(response.content).strip()
+            else:
+                merged_summary = str(response).strip()
+
+            logger.info("成功合并新闻总结")
+            return merged_summary
+
+        except Exception as e:
+            logger.error(f"合并总结失败: {e}")
+            # 如果合并失败，简单拼接
+            return f"{existing_summary}\n\n【新增内容】\n{new_summary}"
 
 # 全局AI总结器实例
 ai_summarizer = AISummarizer()
@@ -255,15 +359,27 @@ ai_summarizer = AISummarizer()
 def test_ai_summarizer():
     """测试AI总结功能"""
     logger.info("开始测试AI总结功能...")
-    
-    # 测试新闻
+
+    # 测试新闻 - 包含不同重要性级别的新闻
     test_news = [
         {
-            'title': '测试新闻1',
-            'content': '美联储宣布加息0.25个百分点，这是今年第三次加息。市场对此反应强烈，股市出现大幅波动。'
+            'title': '比特币ETF获批',
+            'content': 'SEC正式批准首批比特币现货ETF，包括贝莱德、富达等多家机构的申请。这标志着加密货币进入传统金融市场的重要里程碑，预计将吸引大量机构资金流入。'
         },
         {
-            'title': '测试新闻2', 
+            'title': 'Fed加息决议',
+            'content': '美联储宣布加息25个基点，将联邦基金利率上调至5.5%。这是连续第11次加息，旨在控制通胀。市场预期这可能是本轮加息周期的最后一次，美股三大指数盘后上涨。'
+        },
+        {
+            'title': '特斯拉财报超预期',
+            'content': '特斯拉发布Q4财报，营收和净利润均超市场预期。公司表示将加大在自动驾驶技术和储能业务的投资。盘后股价上涨8%。'
+        },
+        {
+            'title': '小型DeFi项目更新',
+            'content': '某小型DeFi协议发布了新版本，修复了一些小bug，提升了用户体验。'
+        },
+        {
+            'title': '天气新闻',
             'content': '今天天气很好，阳光明媚。'
         }
     ]

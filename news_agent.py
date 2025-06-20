@@ -126,12 +126,33 @@ class NewsAgent:
                     else:
                         logger.info(f"新闻已存在，跳过: {title[:50]}...")
                 
-                # 如果有总结，也保存总结
+                # 智能保存每日总结
                 if final_summary and final_summary != "今日暂无重要新闻。":
-                    summary_title = f"每日新闻总结 - {datetime.now().strftime('%Y-%m-%d')}"
-                    if not db_manager.check_news_exists(summary_title):
+                    today = datetime.now().strftime('%Y-%m-%d')
+
+                    # 检查今日是否已有总结
+                    existing_summary = db_manager.get_today_summary(today)
+
+                    if existing_summary:
+                        # 如果已有今日总结，合并新旧总结
+                        logger.info("发现今日已有总结，正在合并新内容...")
+                        merged_summary = ai_summarizer.merge_summaries(
+                            existing_summary['content'],
+                            final_summary,
+                            important_news
+                        )
+
+                        # 更新数据库中的总结
+                        if db_manager.update_news_content(existing_summary['id'], merged_summary):
+                            logger.info("✅ 成功更新今日新闻总结")
+                        else:
+                            logger.error("❌ 更新今日新闻总结失败")
+                    else:
+                        # 如果没有今日总结，插入新的总结
+                        summary_title = f"每日新闻总结 - {today}"
                         if db_manager.insert_news(summary_title, "AI生成的每日新闻总结", final_summary, "高"):
                             saved_count += 1
+                            logger.info("✅ 成功创建今日新闻总结")
                 
                 state["saved_count"] = saved_count
                 logger.info(f"✅ 成功保存 {saved_count} 条记录到数据库")
