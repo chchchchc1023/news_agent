@@ -1,57 +1,58 @@
 """
 AI总结模块
 """
-from typing import List, Dict, Any, Optional
+from typing import List,Dict,Any,Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel, Field
+from pydantic import BaseModel,Field
 from loguru import logger
-from config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
-
+from config import OPENAI_API_KEY,OPENAI_BASE_URL,OPENAI_MODEL
 
 class NewsAnalysis(BaseModel):
-    """新闻分析结果模型
-
+    """
+    新闻分析结果模型
     用于结构化输出新闻重要性分析结果
     """
     importance: str = Field(
         description="重要性等级，必须是以下值之一：高、中、低"
     )
-    summary: Optional[str] = Field(
-        default="",
+    summary : Optioanl[str] = Field(
+        default"",
         description="新闻总结，如果重要性为中或高则提供简洁总结（不超过200字），如果为低可以留空"
+
     )
-    keywords: Optional[str] = Field(
+    keywords: Optional[str]=Field(
         default="",
-        description="关键词，如果重要性为中或高则提供3-5个关键词（用逗号分隔），如果为低可以留空"
+        description="关键词，如果重要性为中或高则提供3-5个关键词（用逗号分隔），如果为低可以留空",
     )
 
 
 class AISummarizer:
-    """AI新闻总结器"""
-    
-    def __init__(self):
-        # 初始化OpenAI模型
-        if OPENAI_API_KEY:
-            # 让OpenAI库自动从环境变量读取API Key，避免编码问题
-            import os
-            os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
+    """AI新闻总结"""
 
-            self.llm = ChatOpenAI(
+    def __init__(self):
+        if not OPENAI_API_KEY or not  OPENAI_MODEL:
+            error_msg="OPENAI_API_KEY或OPENAI_MODEL未设置，请检查配置文件和环境变量。"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        import os
+        os.environ['OPENAI_API_KEY']=OPENAI_API_KEY
+        if OPENAI_BASE_URL:
+            logger.info(f"使用自定义url，模型为{OPENAI_MODEL}")
+            self.llm=ChatOpenAI(
                 base_url=OPENAI_BASE_URL,
                 model=OPENAI_MODEL,
+                api_key=OPENAI_API_KEY,
                 temperature=0
-                # 不直接传递api_key，让库从环境变量读取
             )
-        else:
-            logger.warning("未设置OPENAI_API_KEY，将使用默认配置")
-            self.llm = ChatOpenAI(
-                base_url=OPENAI_BASE_URL,
+        else :
+            logger.info(f"使用默认url，模型为{OPENAI_MODEL}")
+            self.llm=ChatOpenAI(
                 model=OPENAI_MODEL,
+                api_key=OPENAI_API_KEY,
                 temperature=0
             )
-        
         # 创建总结提示模板 - 专为结构化输出设计
         self.summary_prompt = ChatPromptTemplate.from_messages([
     ("system", """你是一位专精加密货币和美股市场的资深金融分析师。请客观分析新闻内容对市场的重要性和潜在影响。
@@ -102,49 +103,47 @@ class AISummarizer:
 - keywords: 如果重要性为中或高，提供3-5个关键词（用逗号分隔），包含相关的市场影响关键词；如果为低，可以留空"""),
     ("human", "新闻内容：{news_content}")
 ])
-    
-    def analyze_news_importance(self, news_content: str) -> Dict[str, Any]:
+        
+    def analyze_news_importance(self,news_content:str)->Dict[str,Any]：
         """
         分析单条新闻的重要性
-
         Args:
-            news_content: 新闻内容
+            news_content：新闻内容
 
         Returns:
-            Dict: 包含重要性等级、总结、关键词的字典
+                Dict：包含重要性等级、总结、关键词的字典
         """
         try:
-            # 首先尝试结构化输出
-            structured_llm = self.llm.with_structured_output(NewsAnalysis)
+            # 尝试结构化输出
+            structured_llm=self.llm.with_structured_output(NewsAnalysis)
             messages = self.summary_prompt.format_messages(news_content=news_content)
-            result = structured_llm.invoke(messages)
+            result=structured_llm.invoke(messages)
 
             result_dict = {
-                'importance': result.importance,
-                'summary': result.summary or '',
-                'keywords': result.keywords or ''
+                'importance':result.importance,
+                'summary':result.summary or '',
+                'keywords':result.keywords or ''
             }
-
-            logger.debug(f"AI分析结果 (结构化): {result_dict}")
+            logger.debug(f"AI分析结果（结构化）:{result_dict}")
             return result_dict
-
         except Exception as e:
-            logger.warning(f"结构化输出失败，尝试JSON模式: {e}")
+            logger.info(f"结构化输出失败，尝试json模式：{e}")
 
-            # 回退到JSON模式
+            # 尝试使用json模式
             try:
                 return self._analyze_with_json_mode(news_content)
             except Exception as e2:
-                logger.error(f"JSON模式也失败: {e2}")
-                # 不返回默认值，而是明确标记为失败
-                return {
-                    'importance': 'FAILED',
-                    'summary': f'AI分析失败: {str(e2)}',
-                    'keywords': 'AI分析失败'
+                logger.error(f"json模式也失败：{e2}")
+                # 返回失败
+                return{
+                    'importance':'FAILED',
+                    'summary':f'AI分析失败:{str(e2)}',
+                    'keywords':'AI分析失败'
                 }
-
-    def _analyze_with_json_mode(self, news_content: str) -> Dict[str, Any]:
-        """使用JSON模式分析新闻"""
+            
+        
+    def _analyze_with_json_mode(self,news_content:str)->Dict[str,Any]:
+        """使用json模式分析新闻"""
         json_prompt = f"""请分析以下新闻对加密货币和美股市场的重要性和影响，并以JSON格式回复。
 
 新闻内容：{news_content}
@@ -185,57 +184,55 @@ class AISummarizer:
 }}
 
 只返回JSON，不要任何其他内容。"""
-
         from langchain_core.messages import HumanMessage
-        response = self.llm.invoke([HumanMessage(content=json_prompt)])
+        response =self.llm.invoke([HumanMessage(content=json_prompt)])
         response_text = str(response.content).strip()
 
-        # 解析JSON响应
-        import json
+        import json 
         import re
 
-        # 提取JSON部分
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        # 提取json部分
+        json_match =re.search(r'\{.*}',response_text,re.DOTALL)
         if json_match:
             json_str = json_match.group(0)
             result_dict = json.loads(json_str)
 
             # 标准化结果
-            return {
-                'importance': result_dict.get('importance', '低'),
-                'summary': result_dict.get('summary', ''),
-                'keywords': result_dict.get('keywords', '')
+            return{
+                'importance':result_dict.get('importance','低'),
+                'summary':result_dict.get('summary',''),
+                'keywords':result_dict.get('keywords','')
             }
         else:
-            raise ValueError(f"无法从响应中提取JSON，AI回复: {response_text[:100]}...")
-
-    def filter_important_news(self, news_list: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+            raise ValueError(f"无法从响应中提取JSON，AI回复:{response_text[:100]}...")
+        
+    def filter_important_news(self,news_list:List[Dict[str,str]])->List[Dict[str,Any]]:
         """
         筛选重要新闻并生成总结
         
         Args:
-            news_list: 新闻列表
-            
+            news_list:新闻列表
+
         Returns:
-            List[Dict]: 重要新闻列表，包含原始新闻和AI分析结果
+            List[Dict]:重要新闻列表，包含原始新闻和AI分析结果
         """
         important_news = []
-        
-        logger.info(f"开始分析 {len(news_list)} 条新闻的重要性...")
-        
-        for i, news in enumerate(news_list):
-            logger.info(f"正在分析第 {i+1}/{len(news_list)} 条新闻...")
+
+        logger.info(f"开始分析{len(news_list)}条新闻的重要性...")
+
+        for i,news in enumerate(news_list):
+            logger.info(f"正在分析第{i+1}/{len(news_list)}条新闻...")
 
             # 分析新闻重要性
             analysis = self.analyze_news_importance(news['content'])
 
             # 检查分析是否失败
-            if analysis['importance'] == 'FAILED':
-                logger.error(f"新闻分析失败，跳过: {news['title'][:50]}... (错误: {analysis['summary']})")
+            if analysis['importance']=='FAILED':
+                logger.error(f"新闻分析失败，跳过:{news['title'][:50]}...(错误:{analysis['summary']})")
                 continue
 
             # 只保留中等和高重要性的新闻
-            if analysis['importance'] in ['中', '高']:
+            if analysis['importance'] in ['中','高']：
                 important_news.append({
                     'original_title': news['title'],
                     'original_content': news['content'],
@@ -244,11 +241,10 @@ class AISummarizer:
                     'keywords': analysis['keywords']
                 })
                 logger.info(f"发现重要新闻: {news['title'][:50]}... (重要性: {analysis['importance']})")
-        
-        logger.info(f"筛选完成，共发现 {len(important_news)} 条重要新闻")
+        logger.info(f"筛选完成，共发现{len(important_news)}条重要新闻")
         return important_news
     
-    def create_final_summary(self, important_news: List[Dict[str, Any]]) -> str:
+    def create_final_summary(self,important_news:List[Dict[str,Any]])->str:
         """
         为重要新闻创建最终总结
         
@@ -260,16 +256,15 @@ class AISummarizer:
         """
         if not important_news:
             return "今日暂无重要新闻。"
-        
         try:
             # 构建总结提示
-            news_summaries = []
-            for i, news in enumerate(important_news, 1):
-                news_summaries.append(f"{i}. {news['summary']} (重要性: {news['importance']})")
-            
+            news_summaries =[]
+            for i,news in enumerate(important_news,1):
+                news_summaries.append(f"{i}.{news['summary']}{重要性:{news['importance']}}")
+
             combined_content = "\n".join(news_summaries)
             
-            final_prompt = f"""请基于以下重要新闻总结，创建一个综合性的日报总结：
+            final_prompt=f"""请基于以下重要新闻总结，创建一个综合性的日报总结：
 
 {combined_content}
 
@@ -279,23 +274,22 @@ class AISummarizer:
 3. 如果有相关联的事件，请指出其关联性
 4. 使用专业但易懂的语言
 """
-            
             messages = [HumanMessage(content=final_prompt)]
             response = self.llm.invoke(messages)
 
             # 安全获取响应内容
-            if hasattr(response, 'content'):
+            if hasattr(response,'content'):
                 return str(response.content).strip()
             else:
                 return str(response).strip()
             
         except Exception as e:
-            logger.error(f"创建最终总结失败: {e}")
+            logger.error(f"创建最终总结失败:{e}")
             # 如果AI总结失败，返回简单的列表总结
-            summaries = [news['summary'] for news in important_news]
-            return "今日重要新闻总结：\n" + "\n".join(f"• {summary}" for summary in summaries)
-
-    def merge_summaries(self, existing_summary: str, new_summary: str, new_important_news: List[Dict[str, Any]]) -> str:
+            summaries = [news['summary']for news in important_news]
+            return "今日重要新闻总结：\n"+"\n".join(f"`{summary}"for summary in summaries)
+        
+    def merge_summaries(self,existing_summary:str,new_summary:str,new_important_news:List[Dict[str,Any]])->str:
         """
         合并已有总结和新总结
 
@@ -310,14 +304,14 @@ class AISummarizer:
         if not new_important_news:
             logger.info("没有新的重要新闻，保持原有总结")
             return existing_summary
-
+        
         try:
             # 构建合并提示
-            new_news_summaries = []
-            for i, news in enumerate(new_important_news, 1):
-                new_news_summaries.append(f"{i}. {news['summary']} (重要性: {news['importance']})")
+            new_news_summaries=[]
+            for i,news in enumerate(new_important_news,1):
+                new_news_summaries.append(f"{i}.{news['summary']}(重要性:{news['importance']})")
 
-            new_content = "\n".join(new_news_summaries)
+            new_content="\n".join(new_news_summaries)
 
             merge_prompt = f"""请将已有的新闻总结与新发现的重要新闻进行合并，生成一个更全面的综合总结。
 
@@ -334,9 +328,9 @@ class AISummarizer:
 4. 保持专业但易懂的语言
 5. 总结长度控制在400字以内
 6. 按重要性和时间逻辑组织内容"""
-
+            
             from langchain_core.messages import HumanMessage
-            response = self.llm.invoke([HumanMessage(content=merge_prompt)])
+            response = self.llm.invoke(HumanMessage(content=merge_prompt))
 
             # 安全获取响应内容
             if hasattr(response, 'content'):
@@ -346,7 +340,7 @@ class AISummarizer:
 
             logger.info("成功合并新闻总结")
             return merged_summary
-
+        
         except Exception as e:
             logger.error(f"合并总结失败: {e}")
             # 如果合并失败，简单拼接
@@ -356,6 +350,9 @@ class AISummarizer:
 ai_summarizer = AISummarizer()
 
 
+
+
+# 以下为测试所用
 def test_ai_summarizer():
     """测试AI总结功能"""
     logger.info("开始测试AI总结功能...")
