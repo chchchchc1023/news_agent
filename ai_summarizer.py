@@ -17,14 +17,13 @@ class NewsAnalysis(BaseModel):
     importance: str = Field(
         description="重要性等级，必须是以下值之一：高、中、低"
     )
-    summary : Optioanl[str] = Field(
-        default"",
-        description="新闻总结，如果重要性为中或高则提供简洁总结（不超过200字），如果为低可以留空"
-
-    )
-    keywords: Optional[str]=Field(
+    summary: Optional[str] = Field(
         default="",
-        description="关键词，如果重要性为中或高则提供3-5个关键词（用逗号分隔），如果为低可以留空",
+        description="新闻总结，如果重要性为中或高则提供简洁总结（不超过200字），如果为低可以留空"
+    )
+    keywords: Optional[str] = Field(
+        default="",
+        description="关键词，如果重要性为中或高则提供3-5个关键词（用逗号分隔），如果为低可以留空"
     )
 
 
@@ -104,7 +103,7 @@ class AISummarizer:
     ("human", "新闻内容：{news_content}")
 ])
         
-    def analyze_news_importance(self,news_content:str)->Dict[str,Any]：
+    def analyze_news_importance(self,news_content:str)->Dict[str,Any]:
         """
         分析单条新闻的重要性
         Args:
@@ -232,7 +231,7 @@ class AISummarizer:
                 continue
 
             # 只保留中等和高重要性的新闻
-            if analysis['importance'] in ['中','高']：
+            if analysis['importance'] in ['中','高']:
                 important_news.append({
                     'original_title': news['title'],
                     'original_content': news['content'],
