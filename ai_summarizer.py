@@ -259,7 +259,7 @@ class AISummarizer:
             # 构建总结提示
             news_summaries =[]
             for i,news in enumerate(important_news,1):
-                news_summaries.append(f"{i}.{news['summary']}{重要性:{news['importance']}}")
+                news_summaries.append(f"{i}.{news['summary']}(重要性:{news['importance']})")
 
             combined_content = "\n".join(news_summaries)
             
@@ -329,7 +329,7 @@ class AISummarizer:
 6. 按重要性和时间逻辑组织内容"""
             
             from langchain_core.messages import HumanMessage
-            response = self.llm.invoke(HumanMessage(content=merge_prompt))
+            response = self.llm.invoke([HumanMessage(content=merge_prompt)])
 
             # 安全获取响应内容
             if hasattr(response, 'content'):
