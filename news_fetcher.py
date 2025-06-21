@@ -13,15 +13,6 @@ class NewsFetcher:
     
     def __init__(self):
         self.api_url = NEWS_API_URL
-        self.session = requests.Session()
-        # 设置请求头
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive'
-        })
     
     def fetch_latest_news(self) -> Optional[List[Dict[str, Any]]]:
         """
@@ -32,8 +23,18 @@ class NewsFetcher:
         """
         try:
             logger.info(f"开始从 {self.api_url} 获取新闻...")
-            
-            response = self.session.get(self.api_url, timeout=30)
+
+            # 每次请求时创建新的Session
+            session = requests.Session()
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'close'
+            })
+
+            response = session.get(self.api_url, timeout=30)
             response.raise_for_status()  # 如果状态码不是200会抛出异常
             
             # 尝试解析JSON响应
